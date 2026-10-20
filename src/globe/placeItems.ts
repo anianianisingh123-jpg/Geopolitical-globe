@@ -79,7 +79,8 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
     const vague = isVague(e) && e.sources < 8;
     const selected = e.zoneId === selectedId;
     // Cap how many event labels can compete at whole-Earth altitude.
-    const worldOk = !vague && e.sources >= 8 && (selected || worldEvents < 8);
+    // At most five event names on the whole Earth; chips stay for zoom / selection.
+    const worldOk = !vague && e.sources >= 10 && (selected || worldEvents < 5);
     if (worldOk) worldEvents++;
     items.push({
       id: `e:${e.id}`,
@@ -88,9 +89,8 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
       kind: "event",
       variant: e.kind,
       text: shortPlace(e.name),
-      // Kind chips (CLASH / …) only when zoomed or selected — they dominate the globe otherwise.
-      ...(!worldOk || selected || e.sources >= 12 ? { tag: KIND_LABEL[e.kind] } : {}),
-      ...(corroborated && (selected || e.sources >= 8) ? { badge: e.sources } : {}),
+      ...(selected || !worldOk ? { tag: KIND_LABEL[e.kind] } : {}),
+      ...(selected || (corroborated && e.sources >= 10 && !worldOk) ? { badge: e.sources } : {}),
       hot: corroborated && now - e.last < EVENT_FRESH_MS,
       priority: corroborated ? 980 + Math.min(e.sources, 40) + (selected ? 80 : 0) - (vague ? 60 : 0) : 620,
       maxAlt: vague
@@ -98,12 +98,12 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
           ? 0.45
           : 0.25
         : worldOk
-          ? 2.2
-          : e.sources >= 4
-            ? 0.95
+          ? 2.15
+          : e.sources >= 5
+            ? 0.9
             : corroborated
-              ? 0.55
-              : 0.35,
+              ? 0.5
+              : 0.32,
       data: { kind: "event", event: e } satisfies PickedPlace,
     });
   }
@@ -123,13 +123,13 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
       kind: "site",
       variant: s.kind,
       text: s.name,
-      ...(SITE_TAG[s.kind] && (selected || hotNews || s.kind !== "node") ? { tag: SITE_TAG[s.kind] } : {}),
-      ...(hotNews ? { badge: news } : {}),
+      ...(SITE_TAG[s.kind] && (selected || news >= 4) ? { tag: SITE_TAG[s.kind] } : {}),
+      ...(news >= 4 ? { badge: news } : {}),
       hot: hotNews || selected,
       priority:
         800 + (hotNews ? 120 + Math.min(news, 40) : 0) + (selected ? 100 : 0) + (s.key ? 20 : 0) + (isPlace ? 5 : 0) - (s.kind === "node" ? 40 : 0),
-      // World-view site labels only for the selected zone or multi-mention headlines.
-      maxAlt: selected || news >= 3 ? 2.0 : hotNews ? 1.0 : s.kind === "node" ? 0.45 : 0.7,
+      // World-view site names only for the selected zone or strong multi-mention.
+      maxAlt: selected || news >= 5 ? 1.9 : hotNews ? 0.85 : s.kind === "node" ? 0.4 : 0.65,
       data: { kind: "site", site: s } satisfies PickedPlace,
     });
   }
