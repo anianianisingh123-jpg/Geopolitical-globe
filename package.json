@@ -8,7 +8,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview",
-    "geo": "node scripts/build-geo.mjs"
+    "geo": "node scripts/build-geo.mjs",
+    "intel": "tsx server/main.ts",
+    "intel:refresh": "node scripts/refresh-intel.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
@@ -33,6 +35,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "topojson-server": "^3.0.1",
     "topojson-simplify": "^3.0.3",
+    "tsx": "^4.20.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1"
   }

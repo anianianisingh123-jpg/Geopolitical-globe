@@ -1,14 +1,18 @@
-# Build the static globe and publish to GitHub Pages.
-# One-time: Repo Settings → Pages → Source → GitHub Actions.
+# Build the globe + intel snapshots and publish to GitHub Pages.
+# One-time: Repo Settings → Pages → Source → GitHub Actions
+#   (or Deploy from branch → gh-pages — this workflow updates both).
 name: Deploy Pages
 
 on:
   push:
     branches: [main]
+  schedule:
+    # Refresh news / fires / events about every 30 minutes.
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -19,19 +23,62 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
-      - run: npm run build
+
+      - name: Restore intel disk cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/signal-heat
+          key: intel-cache-${{ github.run_id }}
+          restore-keys: intel-cache-
+
+      - name: Point intel cache at runner temp
+        run: |
+          mkdir -p "$RUNNER_TEMP/signal-heat"
+          echo "SIGNAL_HEAT_CACHE_DIR=$RUNNER_TEMP/signal-heat" >> "$GITHUB_ENV"
+
+      - name: Refresh intel snapshots
+        run: node scripts/refresh-intel.mjs public/api/intel 480000
+        env:
+          SIGNAL_HEAT_CACHE_DIR: ${{ runner.temp }}/signal-heat
+
+      - name: Build site
+        run: npm run build
         env:
           VITE_BASE: /Geopolitical-globe/
+          VITE_INTEL_STATIC: "1"
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+      - name: Publish gh-pages branch (branch-based Pages)
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/gg-pages
+          mkdir -p /tmp/gg-pages
+          cp -a dist/. /tmp/gg-pages/
+          touch /tmp/gg-pages/.nojekyll
+          cd /tmp/gg-pages
+          git init -b gh-pages
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add -A
+          git commit -m "Publish SIGNAL // HEAT ($(date -u +%Y-%m-%dT%H:%MZ))"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push -f origin gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy:
     needs: build
@@ -42,3 +89,4 @@ jobs:
     steps:
       - id: pub
         uses: actions/deploy-pages@v4
+        continue-on-error: true

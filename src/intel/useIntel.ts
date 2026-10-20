@@ -8,7 +8,7 @@ const FIRES_POLL_MS = 10 * 60_000;
 /** GDELT publishes every 15 min; polling faster only matters while the service backfills its first 24 h. */
 const EVENTS_POLL_MS = 3 * 60_000;
 
-/** "checking" until the first probe; "server" when the local intel service answers; "direct" otherwise (static deploy). */
+/** "checking" until the first probe; "server" when intel answers; "direct" otherwise (browser GDELT fallback). */
 export type IntelMode = "checking" | "server" | "direct";
 
 export type IntelState = {
@@ -21,8 +21,27 @@ export type IntelState = {
   events: EventsPayload | null;
 };
 
-async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
-  const res = await fetch(path, { signal, headers: { Accept: "application/json" } });
+/**
+ * Where to pull intel from:
+ * - VITE_INTEL_URL → live Node process (absolute origin)
+ * - VITE_INTEL_STATIC=1 → JSON snapshots next to the site (GitHub Pages)
+ * - otherwise same-origin /api/intel/* (vite dev / preview plugin)
+ */
+function intelUrl(endpoint: "news" | "trends" | "fires" | "events", focus?: string | null): string {
+  const remote = (import.meta.env.VITE_INTEL_URL as string | undefined)?.replace(/\/$/, "");
+  if (remote) {
+    const q = endpoint === "trends" && focus ? `?focus=${encodeURIComponent(focus)}` : "";
+    return `${remote}/api/intel/${endpoint}${q}`;
+  }
+  if (import.meta.env.VITE_INTEL_STATIC === "1") {
+    return `${import.meta.env.BASE_URL}api/intel/${endpoint}.json`;
+  }
+  const q = endpoint === "trends" && focus ? `?focus=${encodeURIComponent(focus)}` : "";
+  return `/api/intel/${endpoint}${q}`;
+}
+
+async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal, headers: { Accept: "application/json" } });
   if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) throw new Error(`HTTP ${res.status}`);
   return (await res.json()) as T;
 }
@@ -41,10 +60,9 @@ function feedStatus(sources: readonly SourceStatus[]): FeedStatus {
 }
 
 /**
- * Polls the local intel service (news every minute, coverage trends every
- * two, fires every ten), paused while the tab is hidden. If the service isn't
- * there (static hosting), reports mode "direct" so the caller can fall back to
- * querying GDELT from the browser.
+ * Polls intel (news every minute, coverage trends every two, fires every ten),
+ * paused while the tab is hidden. If intel isn't there, reports mode "direct"
+ * so the caller can fall back to querying GDELT from the browser.
  */
 export function useIntel(focusId: string | null, onEvent: (e: FeedEvent) => void): IntelState {
   const [mode, setMode] = useState<IntelMode>("checking");
@@ -66,7 +84,7 @@ export function useIntel(focusId: string | null, onEvent: (e: FeedEvent) => void
 
     const pollNews = async () => {
       try {
-        const n = await getJson<NewsPayload>("/api/intel/news", ctrl.signal);
+        const n = await getJson<NewsPayload>(intelUrl("news"), ctrl.signal);
         setMode("server");
         setNews(n);
         const fresh = n.items.filter((i) => !lastIds.has(i.id)).length;
@@ -85,8 +103,7 @@ export function useIntel(focusId: string | null, onEvent: (e: FeedEvent) => void
 
     const pollTrends = async () => {
       try {
-        const focus = focusRef.current;
-        const t = await getJson<TrendsPayload>(`/api/intel/trends${focus ? `?focus=${encodeURIComponent(focus)}` : ""}`, ctrl.signal);
+        const t = await getJson<TrendsPayload>(intelUrl("trends", focusRef.current), ctrl.signal);
         setTrends(t);
         const count = Object.keys(t.zones).length;
         if (count !== lastTrendCount && count > 0 && (lastTrendCount < 0 || count % 10 === 0 || t.pending === 0))
@@ -100,7 +117,7 @@ export function useIntel(focusId: string | null, onEvent: (e: FeedEvent) => void
 
     const pollFires = async () => {
       try {
-        const f = await getJson<FiresPayload>("/api/intel/fires", ctrl.signal);
+        const f = await getJson<FiresPayload>(intelUrl("fires"), ctrl.signal);
         setFires(f);
         if (f.source.state === "ok")
           onEventRef.current({
@@ -115,7 +132,7 @@ export function useIntel(focusId: string | null, onEvent: (e: FeedEvent) => void
     let lastEventPlaces = -1;
     const pollEvents = async () => {
       try {
-        const e = await getJson<EventsPayload>("/api/intel/events", ctrl.signal);
+        const e = await getJson<EventsPayload>(intelUrl("events"), ctrl.signal);
         setEvents(e);
         const strong = e.places.filter((p) => p.sources >= 2).length;
         if (strong !== lastEventPlaces)
@@ -153,9 +170,9 @@ export function useIntel(focusId: string | null, onEvent: (e: FeedEvent) => void
     };
   }, []);
 
-  // A newly selected zone asks the service to prioritise its trend.
+  // A newly selected zone asks a live service to prioritise its trend (no-op for static snapshots).
   useEffect(() => {
-    if (focusId && mode === "server") pollTrendsRef.current();
+    if (focusId && mode === "server" && import.meta.env.VITE_INTEL_STATIC !== "1") pollTrendsRef.current();
   }, [focusId, mode]);
 
   const items = useMemo<TaggedItem[]>(() => (news ? news.items.map((n) => ({ ...n, zoneIds: zonesForTitle(n.title) })) : []), [news]);

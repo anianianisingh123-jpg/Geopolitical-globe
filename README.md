@@ -4,11 +4,11 @@ A single-page geopolitical heat globe with an ops-center interface. 54 analyst-s
 
 ## Live site
 
-After GitHub Pages is on (Settings → Pages → Source → **GitHub Actions**), every push to `main` publishes:
-
 **https://anianianisingh123-jpg.github.io/Geopolitical-globe/**
 
-Static hosting serves the globe, scores, scenarios, and the browser-side GDELT feed. The local intel service (RSS desks, FIRMS fires, coverage trends) only runs with `npm run dev` / `npm run preview`.
+GitHub Actions builds the site and refreshes intel snapshots (news, events, FIRMS, coverage trends) about every 30 minutes, then publishes to Pages. One-time: Settings → Pages → Source → **GitHub Actions** (or Deploy from branch → `gh-pages`).
+
+For a always-on live intel process instead of snapshots: `npm run intel` (or deploy `server/main.ts`) and build with `VITE_INTEL_URL=https://your-intel-host`.
 
 ## Run
 

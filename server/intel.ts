@@ -51,9 +51,10 @@ const LOCAL_DAYS = 21;
 const EVENTS_CHECK = 5 * 60_000;
 const EVENTS_STEP = 15 * 60_000;
 /** Outside the project tree, so cache writes never wake the dev server's file watcher (and OneDrive). */
-const CACHE_FILE = join(tmpdir(), "signal-heat", "intel-cache-v2.json");
+const CACHE_DIR = process.env.SIGNAL_HEAT_CACHE_DIR || join(tmpdir(), "signal-heat");
+const CACHE_FILE = join(CACHE_DIR, "intel-cache-v2.json");
 /** Holds filtered rows, so bump the version whenever the filter in events.ts changes. */
-const EVENTS_CACHE_FILE = join(tmpdir(), "signal-heat", "events-cache-v2.json");
+const EVENTS_CACHE_FILE = join(CACHE_DIR, "events-cache-v2.json");
 
 type Persisted = {
   gdeltItems: WireNewsItem[];
@@ -70,7 +71,7 @@ const dayKey = (ms: number): string => new Date(ms).toISOString().slice(0, 10).r
 
 const status = (id: string, label: string): SourceStatus => ({ id, label, state: "pending", lastOkAt: null, message: null, count: 0 });
 
-class IntelService {
+export class IntelService {
   private lastClientAt = 0;
   private timer: NodeJS.Timeout | null = null;
 
@@ -424,36 +425,30 @@ class IntelService {
 
   /* ── HTTP ── */
 
-  async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const url = new URL(req.url ?? "/", "http://local");
-    this.touch();
-    if (url.pathname === "/api/intel/news") {
-      if (!this.rssItems.length) await Promise.race([this.refreshRss(), new Promise((r) => setTimeout(r, 9_000))]);
-      const items = mergeItems(this.rssItems, this.gdeltItems, MAX_AGE, 700);
-      const body: NewsPayload = {
-        generatedAt: Date.now(),
-        sources: [...this.rssStatus.values(), { ...this.gdeltStatus, count: this.gdeltItems.length }],
-        items,
-      };
-      return send(res, body);
-    }
-    if (url.pathname === "/api/intel/trends") {
-      const focus = url.searchParams.get("focus");
-      if (focus) this.focus = { id: focus, at: Date.now() };
-      const { local, since } = this.localTrends();
-      const body: TrendsPayload = {
-        generatedAt: Date.now(),
-        source: this.gdeltStatus,
-        zones: Object.fromEntries(this.trends),
-        local,
-        localSince: since,
-        pending: HEATZONES.filter((z) => NEWS_TERMS[z.id] && !this.trends.has(z.id)).length,
-      };
-      return send(res, body);
-    }
-    if (url.pathname === "/api/intel/fires") {
-      if (!this.fires) await Promise.race([this.refreshFires(), new Promise((r) => setTimeout(r, 25_000))]);
-      const body: FiresPayload = this.fires ?? {
+  private newsPayload(): NewsPayload {
+    const items = mergeItems(this.rssItems, this.gdeltItems, MAX_AGE, 700);
+    return {
+      generatedAt: Date.now(),
+      sources: [...this.rssStatus.values(), { ...this.gdeltStatus, count: this.gdeltItems.length }],
+      items,
+    };
+  }
+
+  private trendsPayload(): TrendsPayload {
+    const { local, since } = this.localTrends();
+    return {
+      generatedAt: Date.now(),
+      source: this.gdeltStatus,
+      zones: Object.fromEntries(this.trends),
+      local,
+      localSince: since,
+      pending: HEATZONES.filter((z) => NEWS_TERMS[z.id] && !this.trends.has(z.id)).length,
+    };
+  }
+
+  private firesPayload(): FiresPayload {
+    return (
+      this.fires ?? {
         generatedAt: Date.now(),
         source: this.firesStatus,
         windowHours: 24,
@@ -461,8 +456,36 @@ class IntelService {
         zones: [],
         points: [],
         counts: {},
-      };
-      return send(res, body);
+      }
+    );
+  }
+
+  async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url ?? "/", "http://local");
+    this.touch();
+    // CORS so a hosted intel process can serve the GitHub Pages front end.
+    const origin = req.headers.origin;
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    }
+    if (req.method === "OPTIONS") {
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+    if (url.pathname === "/api/intel/news") {
+      if (!this.rssItems.length) await Promise.race([this.refreshRss(), new Promise((r) => setTimeout(r, 9_000))]);
+      return send(res, this.newsPayload());
+    }
+    if (url.pathname === "/api/intel/trends") {
+      const focus = url.searchParams.get("focus");
+      if (focus) this.focus = { id: focus, at: Date.now() };
+      return send(res, this.trendsPayload());
+    }
+    if (url.pathname === "/api/intel/fires") {
+      if (!this.fires) await Promise.race([this.refreshFires(), new Promise((r) => setTimeout(r, 25_000))]);
+      return send(res, this.firesPayload());
     }
     if (url.pathname === "/api/intel/events") {
       if (!this.eventFiles.size) {
@@ -472,10 +495,70 @@ class IntelService {
       }
       return send(res, this.eventsPayload());
     }
+    if (url.pathname === "/api/intel/health") {
+      return send(res, { ok: true, at: Date.now() });
+    }
     res.statusCode = 404;
     res.end();
   }
+
+  /**
+   * Warm feeds for up to `budgetMs`, then write static JSON snapshots.
+   * Used by GitHub Actions so Pages can serve intel without a live Node process.
+   */
+  async writeSnapshots(outDir: string, budgetMs = 8 * 60_000): Promise<{ news: number; events: number; fires: number; trends: number }> {
+    const started = Date.now();
+    const left = () => Math.max(0, budgetMs - (Date.now() - started));
+    this.touch();
+
+    await Promise.race([this.refreshRss(), sleep(Math.min(45_000, left()))]);
+    this.touch();
+    await Promise.race([this.refreshFires(), sleep(Math.min(60_000, left()))]);
+    this.touch();
+
+    // Event backfill: keep the idle watchdog fed and pull newest files first.
+    void this.refreshEvents();
+    while (left() > 30_000 && this.eventsInflight) {
+      this.touch();
+      await sleep(2_000);
+    }
+
+    // GDELT bands + as many zone trends as the remaining budget allows.
+    while (left() > 15_000) {
+      this.touch();
+      const before = this.nextAllowed;
+      await this.gdeltStep();
+      if (this.nextAllowed === before && !this.gdeltBusy) {
+        // Nothing stale — nudge one band so cron still refreshes news.
+        const band = NEWS_GROUPS[0];
+        if (band) this.bandAt[band.id] = 0;
+        this.nextAllowed = 0;
+        await this.gdeltStep();
+      }
+      await sleep(Math.min(GDELT_SPACING + 500, left()));
+    }
+
+    mkdirSync(outDir, { recursive: true });
+    const news = this.newsPayload();
+    const trends = this.trendsPayload();
+    const fires = this.firesPayload();
+    const events = this.eventsPayload();
+    writeFileSync(join(outDir, "news.json"), JSON.stringify(news));
+    writeFileSync(join(outDir, "trends.json"), JSON.stringify(trends));
+    writeFileSync(join(outDir, "fires.json"), JSON.stringify(fires));
+    writeFileSync(join(outDir, "events.json"), JSON.stringify(events));
+    this.save();
+    this.saveEvents();
+    return {
+      news: news.items.length,
+      events: events.places.length,
+      fires: fires.points.length,
+      trends: Object.keys(trends.zones).length,
+    };
+  }
 }
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function send(res: ServerResponse, body: unknown): void {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
