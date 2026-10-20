@@ -21,12 +21,13 @@ type Props = {
   resolution: Resolution;
   zoneCount: number;
   sunLabel: string;
+  callsign: string;
 };
 
 const SWEEP_MS = 8000;
 const SWEEP_SLICES = 14;
 const SWEEP_SPAN_DEG = 42;
-const BEARINGS = Array.from({ length: 12 }, (_, i) => i * 30);
+const BEARINGS = [0, 90, 180, 270];
 
 function arcPath(r: number, a0: number, a1: number): string {
   const p = (a: number) => `${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)}`;
@@ -35,12 +36,11 @@ function arcPath(r: number, a0: number, a1: number): string {
 
 function ticksPath(r: number): string {
   let d = "";
-  for (let deg = 0; deg < 360; deg += 5) {
+  for (const deg of BEARINGS) {
     const a = ((deg - 90) * Math.PI) / 180;
-    const len = deg % 30 === 0 ? 11 : deg % 10 === 0 ? 6 : 3;
     const c = Math.cos(a);
     const s = Math.sin(a);
-    d += `M${(c * r).toFixed(1)} ${(s * r).toFixed(1)}L${(c * (r + len)).toFixed(1)} ${(s * (r + len)).toFixed(1)}`;
+    d += `M${(c * r).toFixed(1)} ${(s * r).toFixed(1)}L${(c * (r + 8)).toFixed(1)} ${(s * (r + 8)).toFixed(1)}`;
   }
   return d;
 }
@@ -55,16 +55,19 @@ function bracketsPath(h: number, arm: number): string {
   ].join("");
 }
 
-const BOOT_LINES = (res: Resolution, zones: number, sun: string) => [
-  "SIGNAL // HEAT — INSTRUMENT INITIALISING",
-  `› GEODATA ........ NATURAL EARTH 1:${res === "50m" ? "50M" : "110M"}`,
-  `› EPHEMERIS ...... SUBSOLAR ${sun}`,
-  `› ZONES .......... ${zones} ANALYST COMPOSITES`,
-  "› FEED ........... GDELT DOC 2.0 (OPEN SOURCE)",
-  "› RENDER ......... READY",
-];
+function bootLines(callsign: string, res: Resolution, zones: number): string[] {
+  const who = callsign.trim().toUpperCase() || "OPERATOR";
+  return [
+    `STATION ONLINE — ${who}`,
+    "› AUTH .......... OPEN SOURCE DESK",
+    `› EARTH ......... NATURAL EARTH 1:${res === "50m" ? "50M" : "110M"}`,
+    `› ZONES ......... ${zones} COMPOSITES`,
+    "› FEED .......... LINKING",
+    "› READY",
+  ];
+}
 
-export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }: Props) {
+export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel, callsign }: Props) {
   const clipId = useId().replace(/:/g, "");
   const rootRef = useRef<SVGSVGElement>(null);
   const clipRef = useRef<SVGCircleElement>(null);
@@ -72,7 +75,6 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
   const sweepSlicesRef = useRef<SVGGElement>(null);
   const ringRef = useRef<SVGGElement>(null);
   const ringCircleRef = useRef<SVGCircleElement>(null);
-  const ringInnerRef = useRef<SVGCircleElement>(null);
   const ticksRef = useRef<SVGPathElement>(null);
   const labelsRef = useRef<(SVGTextElement | null)[]>([]);
   const targetRef = useRef<SVGGElement>(null);
@@ -86,10 +88,11 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
   const sweepOn = useRef(sweep);
   sweepOn.current = sweep;
   const [booted, setBooted] = useState(false);
+  const lines = useMemoBoot(callsign, resolution, zoneCount);
 
   useEffect(() => {
     if (!ready) return;
-    const t = window.setTimeout(() => setBooted(true), 450);
+    const t = window.setTimeout(() => setBooted(true), 520);
     return () => window.clearTimeout(t);
   }, [ready]);
 
@@ -104,15 +107,14 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
         if (Math.abs(r - lastR.current) > 0.5) {
           lastR.current = r;
           clipRef.current?.setAttribute("r", r.toFixed(1));
-          ringCircleRef.current?.setAttribute("r", (r + 10).toFixed(1));
-          ringInnerRef.current?.setAttribute("r", (r + 2).toFixed(1));
-          ticksRef.current?.setAttribute("d", ticksPath(r + 10));
+          ringCircleRef.current?.setAttribute("r", (r + 8).toFixed(1));
+          ticksRef.current?.setAttribute("d", ticksPath(r + 8));
           BEARINGS.forEach((deg, i) => {
             const el = labelsRef.current[i];
             if (!el) return;
             const a = ((deg - 90) * Math.PI) / 180;
-            el.setAttribute("x", (Math.cos(a) * (r + 32)).toFixed(1));
-            el.setAttribute("y", (Math.sin(a) * (r + 32) + 3).toFixed(1));
+            el.setAttribute("x", (Math.cos(a) * (r + 26)).toFixed(1));
+            el.setAttribute("y", (Math.sin(a) * (r + 26) + 3).toFixed(1));
           });
           const slices = sweepSlicesRef.current;
           if (slices) {
@@ -144,7 +146,7 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
         if (tgtNameRef.current && tgtNameRef.current.textContent !== name.toUpperCase()) tgtNameRef.current.textContent = name.toUpperCase();
       },
       center(lat, lng, altitude) {
-        if (centerRef.current) centerRef.current.textContent = `${fmtLat(lat)} ${fmtLng(lng)} · ALT ${altitude.toFixed(2)}R`;
+        if (centerRef.current) centerRef.current.textContent = `${fmtLat(lat)} ${fmtLng(lng)} · ${altitude.toFixed(2)}R`;
       },
       cursor(text) {
         if (cursorRef.current) cursorRef.current.textContent = text ?? "—";
@@ -175,7 +177,6 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
           </g>
         </g>
         <g ref={ringRef} className="hud-ring">
-          <circle ref={ringInnerRef} className="hud-ring-inner" />
           <circle ref={ringCircleRef} className="hud-ring-outer" />
           <path ref={ticksRef} className="hud-ticks" />
           {BEARINGS.map((deg, i) => (
@@ -187,7 +188,7 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
               className="hud-bearing"
               textAnchor="middle"
             >
-              {String(deg).padStart(3, "0")}
+              {deg === 0 ? "N" : deg === 90 ? "E" : deg === 180 ? "S" : "W"}
             </text>
           ))}
         </g>
@@ -200,13 +201,6 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
         </g>
       </svg>
 
-      <div className="hud-corner hud-tl mono">
-        <span className="hud-k">PROJ</span> ORTHO · NE 1:{resolution === "50m" ? "50M" : "110M"}
-        <br />
-        <span className="hud-k">SUBSOLAR</span> {sunLabel}
-        <br />
-        <span className="hud-k">DETAIL</span> <span ref={detailRef}>—</span>
-      </div>
       <div className="hud-corner hud-bl mono">
         <div>
           <span className="hud-k">CTR</span> <span ref={centerRef}>—</span>
@@ -214,12 +208,17 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
         <div>
           <span className="hud-k">CUR</span> <span ref={cursorRef}>—</span>
         </div>
+        <div className="hud-detail">
+          <span className="hud-k">SUN</span> {sunLabel}
+          <span className="hud-sep">·</span>
+          <span ref={detailRef}>—</span>
+        </div>
       </div>
 
       {!booted && (
         <div className={`boot-overlay mono${ready ? " boot-done" : ""}`}>
-          {BOOT_LINES(resolution, zoneCount, sunLabel).map((l, i) => (
-            <div key={l} className="boot-line" style={{ animationDelay: `${i * 140}ms` }}>
+          {lines.map((l, i) => (
+            <div key={l} className="boot-line" style={{ animationDelay: `${i * 110}ms` }}>
               {l}
             </div>
           ))}
@@ -227,4 +226,14 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel }:
       )}
     </div>
   );
+}
+
+/** Stable boot copy for a given callsign / resolution / zone count. */
+function useMemoBoot(callsign: string, resolution: Resolution, zoneCount: number): string[] {
+  const key = `${callsign}|${resolution}|${zoneCount}`;
+  const ref = useRef<{ key: string; lines: string[] }>({ key: "", lines: [] });
+  if (ref.current.key !== key) {
+    ref.current = { key, lines: bootLines(callsign, resolution, zoneCount) };
+  }
+  return ref.current.lines;
 }

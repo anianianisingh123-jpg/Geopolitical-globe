@@ -466,6 +466,7 @@ function Instrument({ dataset }: { dataset: HeatDataset }) {
             fireClusters={fireClusters}
             eventPlaces={eventPlaces}
             showPlaces={state.showPlaces}
+            callsign={callsign}
             onSelect={select}
             onPickPlace={pickPlace}
             onError={onGlobeError}
@@ -522,7 +523,13 @@ function Instrument({ dataset }: { dataset: HeatDataset }) {
   );
 
   return (
-    <div className="app" data-mobile={isMobile} data-feed={state.feedOpen} data-rail={state.railOpen}>
+    <div
+      className="app"
+      data-mobile={isMobile}
+      data-feed={state.feedOpen}
+      data-rail={state.railOpen}
+      data-watch={state.watchlist.length > 0}
+    >
       <TopBar
         searchRef={searchRef}
         query={state.query}
@@ -533,6 +540,7 @@ function Instrument({ dataset }: { dataset: HeatDataset }) {
         selectedId={state.selectedId}
         scenarioActive={scenarioActive}
         compact={isMobile}
+        callsign={callsign}
         onQuery={(query) => dispatch({ type: "setQuery", query })}
         onSort={(sort) => dispatch({ type: "setSort", sort })}
         onRising={() => dispatch({ type: "toggleRising" })}
@@ -686,7 +694,7 @@ function Instrument({ dataset }: { dataset: HeatDataset }) {
               </>
             )}
           </aside>
-          {watch}
+          {state.watchlist.length > 0 && watch}
         </main>
       )}
 
@@ -733,6 +741,7 @@ function Instrument({ dataset }: { dataset: HeatDataset }) {
         asOf={dataset.asOf}
         feed={feedLabel}
         compact={isMobile}
+        callsign={callsign}
       />
     </div>
   );

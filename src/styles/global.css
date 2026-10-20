@@ -123,7 +123,9 @@ kbd {
   left: var(--rail-w);
   right: var(--feed-w);
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 45%, #061329 0%, #02050b 62%);
+  background:
+    radial-gradient(ellipse at 50% 42%, #0a1a36 0%, transparent 42%),
+    radial-gradient(ellipse at 50% 55%, #061329 0%, #02050b 68%);
 }
 
 .app[data-rail="false"] .globe-slot {
@@ -132,6 +134,10 @@ kbd {
 
 .app[data-feed="false"] .globe-slot {
   right: 30px;
+}
+
+.app[data-watch="false"] .globe-slot {
+  bottom: var(--status-h);
 }
 
 .globe-wrap,
@@ -167,10 +173,10 @@ kbd {
   height: var(--bar-h);
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   padding: 0 14px;
-  background: var(--panel-glass);
-  backdrop-filter: blur(8px);
+  background: rgba(2, 6, 14, 0.72);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
 
@@ -1113,24 +1119,34 @@ input[type="range"][data-changed="true"]::-moz-range-thumb {
   height: var(--status-h);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   padding: 0 14px;
-  font-size: 10.5px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
   color: var(--faint);
-  background: var(--panel-glass);
+  background: rgba(2, 6, 14, 0.85);
   border-top: 1px solid var(--line);
   white-space: nowrap;
   overflow: hidden;
 }
 
+.status-who {
+  color: var(--gold);
+  letter-spacing: 0.14em;
+}
+
 .status-caveat {
-  color: var(--muted);
+  color: var(--faint);
+}
+
+.status-feed {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status-right {
   margin-left: auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--muted);
 }
 
 /* ── globe overlays ────────────────────────────────── */

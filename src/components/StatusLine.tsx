@@ -11,25 +11,23 @@ type Props = {
   asOf: string;
   feed: string;
   compact: boolean;
+  callsign: string;
 };
 
-export function StatusLine({ total, lit, mode, layers, scenarioLabel, customWeights, asOf, feed, compact }: Props) {
-  const layerText = mode === "composite" ? "composite" : layers.map((l) => DRIVER_META[l].label.toLowerCase()).join(" + ");
+export function StatusLine({ total, lit, mode, layers, scenarioLabel, customWeights, asOf, feed, compact, callsign }: Props) {
+  const layerText = mode === "composite" ? "composite" : layers.map((l) => DRIVER_META[l].short).join("+");
   return (
     <footer className="status mono" role="status" aria-live="polite">
+      <span className="status-who">{callsign.toUpperCase()}</span>
       <span>
-        {total} zones · {lit} lit
+        {lit}/{total} lit
       </span>
-      <span>layers: {layerText}</span>
-      <span>scenario: {scenarioLabel.toLowerCase()}</span>
-      <span>weights: {customWeights ? "custom" : "default"}</span>
-      <span>feed: {feed}</span>
-      <span className="status-caveat">scores are analyst composites, not probabilities</span>
-      {!compact && (
-        <span className="status-right">
-          {asOf} · drag rotate · scroll zoom · dbl-click reset · / search · 0–8 layers · esc close
-        </span>
-      )}
+      <span>{layerText}</span>
+      {scenarioLabel.toLowerCase() !== "baseline" && <span>{scenarioLabel.toLowerCase()}</span>}
+      {customWeights && <span>custom weights</span>}
+      <span className="status-feed">{feed}</span>
+      {!compact && <span className="status-caveat">analyst composites · not probabilities</span>}
+      <span className="status-right">{asOf}</span>
     </footer>
   );
 }
