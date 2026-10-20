@@ -2,6 +2,14 @@
 
 A single-page geopolitical heat globe with an ops-center interface. 54 analyst-scored zones across kinetic, frozen, maritime, nuclear, sanctions, regime, resource and great-power drivers are rendered as extruded country polygons, sub-national footprints, ringed target markers, lanes and range rings. Beside the globe runs a live open-source news feed (GDELT) that tags headlines to zones. The scores are analyst composites. They are not probabilities.
 
+## Live site
+
+After GitHub Pages is on (Settings → Pages → Source → **GitHub Actions**), every push to `main` publishes:
+
+**https://anianianisingh123-jpg.github.io/Geopolitical-globe/**
+
+Static hosting serves the globe, scores, scenarios, and the browser-side GDELT feed. The local intel service (RSS desks, FIRMS fires, coverage trends) only runs with `npm run dev` / `npm run preview`.
+
 ## Run
 
 Requires Node 20+.
