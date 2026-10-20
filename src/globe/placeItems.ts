@@ -123,13 +123,14 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
       kind: "site",
       variant: s.kind,
       text: s.name,
-      ...(SITE_TAG[s.kind] && (selected || news >= 4) ? { tag: SITE_TAG[s.kind] } : {}),
-      ...(news >= 4 ? { badge: news } : {}),
+      // Kind chips / counts only once a zone is open or you're close in.
+      ...(SITE_TAG[s.kind] && selected ? { tag: SITE_TAG[s.kind] } : {}),
+      ...(selected && news ? { badge: news } : {}),
       hot: hotNews || selected,
       priority:
         800 + (hotNews ? 120 + Math.min(news, 40) : 0) + (selected ? 100 : 0) + (s.key ? 20 : 0) + (isPlace ? 5 : 0) - (s.kind === "node" ? 40 : 0),
       // World-view site names only for the selected zone or strong multi-mention.
-      maxAlt: selected || news >= 5 ? 1.9 : hotNews ? 0.85 : s.kind === "node" ? 0.4 : 0.65,
+      maxAlt: selected ? 2.0 : news >= 6 ? 1.6 : hotNews ? 0.8 : s.kind === "node" ? 0.4 : 0.6,
       data: { kind: "site", site: s } satisfies PickedPlace,
     });
   }
