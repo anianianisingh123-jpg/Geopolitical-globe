@@ -562,18 +562,18 @@
 
 .hud-ring-outer {
   fill: none;
-  stroke: rgba(111, 147, 200, 0.22);
+  stroke: rgba(111, 147, 200, 0.14);
   stroke-width: 1;
 }
 
 .hud-ticks {
-  stroke: rgba(111, 147, 200, 0.4);
+  stroke: rgba(111, 147, 200, 0.28);
   stroke-width: 1;
 }
 
 .hud-bearing {
   font: 500 9px var(--mono);
-  fill: rgba(131, 151, 184, 0.55);
+  fill: rgba(131, 151, 184, 0.35);
   letter-spacing: 0.06em;
 }
 
@@ -614,11 +614,11 @@
   position: absolute;
   font-size: 10px;
   line-height: 1.55;
-  color: var(--muted);
+  color: var(--faint);
   letter-spacing: 0.04em;
-  padding: 8px 10px;
-  background: rgba(2, 6, 14, 0.55);
-  border: 1px solid rgba(19, 38, 74, 0.7);
+  padding: 6px 8px;
+  background: rgba(2, 6, 14, 0.4);
+  border: 1px solid rgba(19, 38, 74, 0.45);
 }
 
 .hud-k {
@@ -1345,57 +1345,61 @@
   }
 }
 
-/* ── reported events (GDELT) ── */
+/* ── reported events (GDELT) — quiet pins, not a sticker sheet ── */
 .pl-event {
-  font: 600 10.5px/1 var(--mono);
+  font: 500 10px/1 var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #ffd3c4;
+  color: #d8c4bc;
 }
 
 .pl-event .pl-mark {
-  width: 9px;
-  height: 9px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #ff3b24;
-  box-shadow: 0 0 0 2px rgba(2, 5, 11, 0.9), 0 0 8px 1px rgba(255, 59, 36, 0.8);
+  background: #e2553a;
+  box-shadow: 0 0 0 1px rgba(2, 5, 11, 0.95);
 }
 
 .pl-event .pl-tag {
-  color: #ff8a70;
-  border-color: rgba(255, 90, 60, 0.5);
+  color: #c98978;
+  border-color: rgba(180, 90, 70, 0.4);
+  font-size: 8px;
+  padding: 1px 3px;
 }
 
 .pl-event .pl-badge {
-  color: #fff;
-  background: #d8321f;
+  color: #1a0c08;
+  background: #c98978;
+  font-size: 8px;
+  padding: 1px 3px;
 }
 
 .pl-event.pl-hot .pl-mark {
-  animation: pl-pulse-red 1.8s ease-in-out infinite;
+  animation: pl-pulse-red 2.8s ease-in-out infinite;
 }
 
 /* Single source: unconfirmed, drawn quiet. */
 .pl-event:not(:has(.pl-badge)) {
-  color: #b99b93;
+  color: #8a7a74;
   font-weight: 500;
 }
 
 .pl-event:not(:has(.pl-badge)) .pl-mark {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   background: transparent;
-  border: 1.5px solid #ff6a45;
+  border: 1px solid #a86a58;
   box-shadow: none;
 }
 
 @keyframes pl-pulse-red {
   0%,
   100% {
-    box-shadow: 0 0 0 2px rgba(2, 5, 11, 0.9), 0 0 0 2px rgba(255, 59, 36, 0.6);
+    box-shadow: 0 0 0 1px rgba(2, 5, 11, 0.95), 0 0 0 1px rgba(226, 85, 58, 0.35);
   }
   50% {
-    box-shadow: 0 0 0 2px rgba(2, 5, 11, 0.9), 0 0 0 9px rgba(255, 59, 36, 0);
+    box-shadow: 0 0 0 1px rgba(2, 5, 11, 0.95), 0 0 0 5px rgba(226, 85, 58, 0);
   }
 }
 

@@ -67,13 +67,20 @@ type Args = {
 export function placeItems({ world, details, sites, siteNews, clusters, events, selectedId }: Args): LabelItem[] {
   const items: LabelItem[] = [];
 
-  // Reported events outrank everything, including sites named in headlines: they say what happened, not just that a place was mentioned.
-  // Single-source places are often mis-located, so they appear only close in.
+  // Reported events outrank sites: they say what happened. World view stays sparse —
+  // only heavily corroborated places get labels at altitude; the rest wait for zoom.
   const now = Date.now();
-  for (const e of events ?? []) {
+  const rankedEvents = [...(events ?? [])].sort(
+    (a, b) => b.sources - a.sources || b.last - a.last || (b.zoneId === selectedId ? 1 : 0) - (a.zoneId === selectedId ? 1 : 0),
+  );
+  let worldEvents = 0;
+  for (const e of rankedEvents) {
     const corroborated = e.sources >= 2;
-    // Region-level places ("Nigeria (general)") are often a mis-read name; only heavy sourcing lifts them to the world view.
     const vague = isVague(e) && e.sources < 8;
+    const selected = e.zoneId === selectedId;
+    // Cap how many event labels can compete at whole-Earth altitude.
+    const worldOk = !vague && e.sources >= 8 && (selected || worldEvents < 8);
+    if (worldOk) worldEvents++;
     items.push({
       id: `e:${e.id}`,
       lat: e.lat,
@@ -81,22 +88,34 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
       kind: "event",
       variant: e.kind,
       text: shortPlace(e.name),
-      tag: KIND_LABEL[e.kind],
-      ...(corroborated ? { badge: e.sources } : {}),
+      // Kind chips (CLASH / …) only when zoomed or selected — they dominate the globe otherwise.
+      ...(!worldOk || selected || e.sources >= 12 ? { tag: KIND_LABEL[e.kind] } : {}),
+      ...(corroborated && (selected || e.sources >= 8) ? { badge: e.sources } : {}),
       hot: corroborated && now - e.last < EVENT_FRESH_MS,
-      priority: corroborated ? 980 + Math.min(e.sources, 40) + (e.zoneId === selectedId ? 60 : 0) - (vague ? 60 : 0) : 620,
-      maxAlt: vague ? (corroborated ? 0.6 : 0.3) : e.sources >= 4 ? 2.4 : corroborated ? 1.2 : 0.45,
+      priority: corroborated ? 980 + Math.min(e.sources, 40) + (selected ? 80 : 0) - (vague ? 60 : 0) : 620,
+      maxAlt: vague
+        ? corroborated
+          ? 0.45
+          : 0.25
+        : worldOk
+          ? 2.2
+          : e.sources >= 4
+            ? 0.95
+            : corroborated
+              ? 0.55
+              : 0.35,
       data: { kind: "event", event: e } satisfies PickedPlace,
     });
   }
 
-  // Sites first: a city that is also a site is labelled once, as the site.
+  // Sites: a city that is also a site is labelled once, as the site.
   const siteKeys = new Set<string>();
   for (const s of sites) {
     siteKeys.add(`${fold(s.name)}|${Math.round(s.coord[0])}|${Math.round(s.coord[1])}`);
     const news = siteNews.get(s.id) ?? 0;
     const selected = s.zoneId === selectedId;
     const isPlace = s.kind === "city" || s.kind === "capital";
+    const hotNews = news >= 2;
     items.push({
       id: `s:${s.id}`,
       lat: s.coord[0],
@@ -104,19 +123,20 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
       kind: "site",
       variant: s.kind,
       text: s.name,
-      ...(SITE_TAG[s.kind] ? { tag: SITE_TAG[s.kind] } : {}),
-      ...(news ? { badge: news } : {}),
-      hot: news > 0 || selected,
+      ...(SITE_TAG[s.kind] && (selected || hotNews || s.kind !== "node") ? { tag: SITE_TAG[s.kind] } : {}),
+      ...(hotNews ? { badge: news } : {}),
+      hot: hotNews || selected,
       priority:
-        800 + (news ? 150 + Math.min(news, 40) : 0) + (selected ? 100 : 0) + (s.key ? 20 : 0) + (isPlace ? 5 : 0) - (s.kind === "node" ? 40 : 0),
-      maxAlt: news || selected ? 2.4 : s.kind === "node" ? 0.6 : 0.8,
+        800 + (hotNews ? 120 + Math.min(news, 40) : 0) + (selected ? 100 : 0) + (s.key ? 20 : 0) + (isPlace ? 5 : 0) - (s.kind === "node" ? 40 : 0),
+      // World-view site labels only for the selected zone or multi-mention headlines.
+      maxAlt: selected || news >= 3 ? 2.0 : hotNews ? 1.0 : s.kind === "node" ? 0.45 : 0.7,
       data: { kind: "site", site: s } satisfies PickedPlace,
     });
   }
 
   if (clusters) {
     for (const c of clusters) {
-      if (c.n < 2 && c.maxFrp < 20) continue;
+      if (c.n < 4 && c.maxFrp < 40) continue;
       items.push({
         id: `f:${c.id}`,
         lat: c.lat,
@@ -125,7 +145,7 @@ export function placeItems({ world, details, sites, siteNews, clusters, events, 
         text: `${c.n} ${c.n === 1 ? "FIRE" : "FIRES"}`,
         ...(c.near ? { sub: c.near } : {}),
         priority: 700 + Math.min(c.n, 200) / 2,
-        maxAlt: c.n >= 20 ? 1.1 : c.n >= 6 ? 0.6 : 0.3,
+        maxAlt: c.n >= 40 ? 0.85 : c.n >= 12 ? 0.45 : 0.22,
         data: { kind: "fire", cluster: c } satisfies PickedPlace,
       });
     }

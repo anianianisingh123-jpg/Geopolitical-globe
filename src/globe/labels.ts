@@ -75,7 +75,7 @@ const sigOf = (i: LabelItem): string => `${i.text}|${i.sub ?? ""}|${i.tag ?? ""}
 
 export class LabelLayer {
   readonly root: HTMLDivElement;
-  budget = 170;
+  budget = 72;
   private items: Prepared[] = [];
   private placed: Prepared[] = [];
   private pool = new Map<string, HTMLElement>();

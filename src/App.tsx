@@ -204,15 +204,16 @@ function Instrument({ dataset }: { dataset: HeatDataset }) {
     const recent = matchSites(news.items, siteMatcher, 3 * 3_600_000);
     const siteZones = new Set<string>();
     const out: NewsPing[] = [];
+    // Sparse rings: a few named sites beat a carpet of zone centroids.
     for (const id of recent.keys()) {
       const s = sitesById.get(id);
-      if (!s || out.length >= 18) continue;
+      if (!s || out.length >= 6) continue;
       siteZones.add(s.zoneId);
       out.push({ id: s.id, lat: s.coord[0], lng: s.coord[1] });
     }
     const seen = new Set<string>();
     for (const n of news.items) {
-      if (n.seen < cutoff || out.length >= 24) break;
+      if (n.seen < cutoff || out.length >= 8) break;
       for (const id of n.zoneIds) {
         const z = byId.get(id)?.zone;
         if (!z || seen.has(id) || siteZones.has(id)) continue;
@@ -261,14 +262,14 @@ function Instrument({ dataset }: { dataset: HeatDataset }) {
     () => (state.selectedId && eventPlaces ? eventPlaces.filter((e) => e.zoneId === state.selectedId) : null),
     [state.selectedId, eventPlaces],
   );
-  /** Headline pings, plus corroborated events reported in the last hour. */
+  /** A few fresh, well-sourced event rings — not a full pulse carpet. */
   const globePings = useMemo<NewsPing[]>(() => {
     const cutoff = Date.now() - 3_600_000;
     const fresh = (eventPlaces ?? [])
-      .filter((e) => e.sources >= 2 && e.last >= cutoff)
-      .slice(0, 10)
+      .filter((e) => e.sources >= 4 && e.last >= cutoff)
+      .slice(0, 4)
       .map((e) => ({ id: `e:${e.id}`, lat: e.lat, lng: e.lng }));
-    return [...fresh, ...pings];
+    return [...fresh, ...pings].slice(0, 10);
   }, [eventPlaces, pings]);
   const pickEvent = useCallback(
     (event: EventPlace) => {

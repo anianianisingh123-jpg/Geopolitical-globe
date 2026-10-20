@@ -67,7 +67,8 @@ function bootLines(callsign: string, res: Resolution, zones: number): string[] {
   ];
 }
 
-export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel, callsign }: Props) {
+export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel: _sun, callsign }: Props) {
+  void _sun;
   const clipId = useId().replace(/:/g, "");
   const rootRef = useRef<SVGSVGElement>(null);
   const clipRef = useRef<SVGCircleElement>(null);
@@ -176,7 +177,7 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel, c
             <line x1="0" y1="0" x2="4000" y2="0" className="hud-sweep-edge" />
           </g>
         </g>
-        <g ref={ringRef} className="hud-ring">
+        <g ref={ringRef} className="hud-ring" opacity="0.55">
           <circle ref={ringCircleRef} className="hud-ring-outer" />
           <path ref={ticksRef} className="hud-ticks" />
           {BEARINGS.map((deg, i) => (
@@ -207,11 +208,6 @@ export function GlobeHud({ ref, sweep, ready, resolution, zoneCount, sunLabel, c
         </div>
         <div>
           <span className="hud-k">CUR</span> <span ref={cursorRef}>—</span>
-        </div>
-        <div className="hud-detail">
-          <span className="hud-k">SUN</span> {sunLabel}
-          <span className="hud-sep">·</span>
-          <span ref={detailRef}>—</span>
         </div>
       </div>
 

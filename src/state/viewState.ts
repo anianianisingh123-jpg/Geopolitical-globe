@@ -41,15 +41,15 @@ export const initialViewState: ViewState = {
   query: "",
   selectedId: null,
   focus: null,
-  // Globe-first: rails stay closed until the operator opens them.
+  // Globe-first: rails closed, overlays sparse — Earth and heat lead.
   railOpen: false,
   showLinks: false,
-  showRoutes: true,
+  showRoutes: false,
   autoRotate: false,
-  showFires: true,
+  // FIRMS spikes and route lanes are opt-in; events stay on but label sparsely.
+  showFires: false,
   showPlaces: true,
   showEvents: true,
-  // Sweep is theatrical; off by default so the Earth reads clean.
   sweep: false,
   lowPower: false,
   feedOpen: false,
