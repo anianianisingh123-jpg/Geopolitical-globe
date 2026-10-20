@@ -100,9 +100,9 @@ export function Briefing(p: Props) {
         exit={{ y: 10, opacity: 0 }}
         transition={{ duration: 0.24, ease: [0.2, 0, 0, 1] }}
       >
-        <div className="brief-class mono">BRIEF // OPEN SOURCE // FOR {p.callsign.toUpperCase()}</div>
+        <div className="brief-class mono">STATION BRIEF // FOR {p.callsign.toUpperCase()}</div>
         <header className="brief-head">
-          <div className="brief-kicker mono">DAILY BRIEF · {stamp(now)}</div>
+          <div className="brief-kicker mono">ON WATCH · {stamp(now)}</div>
           <h2 className="brief-title">
             {greeting(now)},{" "}
             {editing ? (
@@ -189,7 +189,7 @@ export function Briefing(p: Props) {
         <section className="brief-sec">
           <h3 className="brief-h mono">YOUR WATCHLIST</h3>
           {watch.length === 0 ? (
-            <p className="brief-empty">Pin zones with ＋ WATCH in a zone's panel and they are tracked here each time you open the app.</p>
+            <p className="brief-empty">Pin zones with ＋ WATCH — they surface here every time you come on station.</p>
           ) : (
             <ul className="brief-list">
               {watch.map(({ s, headlines, events }) => (
@@ -230,7 +230,7 @@ export function Briefing(p: Props) {
             <span>Brief me when I open the app</span>
           </label>
           <button ref={enterRef} type="button" className="brief-enter" onClick={p.onClose}>
-            Enter the map ⏎
+            Enter station ⏎
           </button>
         </footer>
       </m.section>

@@ -41,16 +41,18 @@ export const initialViewState: ViewState = {
   query: "",
   selectedId: null,
   focus: null,
-  railOpen: true,
+  // Globe-first: rails stay closed until the operator opens them.
+  railOpen: false,
   showLinks: false,
   showRoutes: true,
   autoRotate: false,
   showFires: true,
   showPlaces: true,
   showEvents: true,
-  sweep: true,
+  // Sweep is theatrical; off by default so the Earth reads clean.
+  sweep: false,
   lowPower: false,
-  feedOpen: true,
+  feedOpen: false,
   watchlist: [],
 };
 

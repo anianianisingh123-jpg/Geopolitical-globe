@@ -60,6 +60,8 @@ export type GlobeViewProps = {
   /** GDELT event places (already filtered by the caller's toggle). */
   eventPlaces: readonly EventPlace[] | null;
   showPlaces: boolean;
+  /** Operator callsign for the boot sequence. */
+  callsign: string;
   onSelect: (id: string) => void;
   onPickPlace: (p: PickedPlace) => void;
   onError: (err: Error) => void;
@@ -924,6 +926,7 @@ export default function GlobeView(props: GlobeViewProps) {
         resolution={props.resolution}
         zoneCount={props.baseZones.length}
         sunLabel={`${fmtLat(sun.lat)} ${fmtLng(sun.lng)}`}
+        callsign={props.callsign}
       />
     </div>
   );

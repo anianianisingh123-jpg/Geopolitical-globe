@@ -12,13 +12,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   font-size: 10px;
-  letter-spacing: 0.22em;
-  color: var(--gold);
-  background: linear-gradient(90deg, #030a18, #0a1a36 50%, #030a18);
-  border-bottom: 1px solid rgba(201, 164, 76, 0.35);
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  background: #030812;
+  border-bottom: 1px solid rgba(201, 164, 76, 0.28);
   white-space: nowrap;
   overflow: hidden;
+}
+
+.classbar-station {
+  color: var(--gold-hi);
+  letter-spacing: 0.2em;
+}
+
+.classbar-sep {
+  color: var(--faint);
+  letter-spacing: 0;
 }
 
 .brand-name {
@@ -27,7 +38,31 @@
 
 .brand-dot {
   background: radial-gradient(circle, #fff6dc 0 25%, var(--gold) 50%, #6b5320 100%);
-  box-shadow: 0 0 8px rgba(201, 164, 76, 0.7);
+  box-shadow: 0 0 6px rgba(201, 164, 76, 0.55);
+}
+
+.topbar-more {
+  display: flex;
+  gap: 4px;
+}
+
+.chip-quiet {
+  color: var(--faint);
+  border-color: transparent;
+  background: transparent;
+}
+
+.chip-quiet:hover,
+.chip-quiet[aria-pressed="true"] {
+  color: var(--muted);
+  border-color: var(--line);
+  background: transparent;
+}
+
+.chip-brief {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font: 500 10px/1 var(--mono);
 }
 
 /* clocks */
@@ -77,7 +112,7 @@
   letter-spacing: 0.16em;
   color: var(--gold);
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(201, 164, 76, 0.06), transparent);
+  background: transparent;
 }
 
 .rail-h-meta {
@@ -429,7 +464,7 @@
 }
 
 .panel-head {
-  background: linear-gradient(180deg, rgba(201, 164, 76, 0.07), transparent);
+  background: transparent;
   border-bottom: 1px solid var(--line-2);
 }
 
@@ -527,26 +562,19 @@
 
 .hud-ring-outer {
   fill: none;
-  stroke: rgba(111, 147, 200, 0.32);
+  stroke: rgba(111, 147, 200, 0.22);
   stroke-width: 1;
-}
-
-.hud-ring-inner {
-  fill: none;
-  stroke: rgba(201, 164, 76, 0.18);
-  stroke-width: 1;
-  stroke-dasharray: 2 6;
 }
 
 .hud-ticks {
-  stroke: rgba(111, 147, 200, 0.55);
+  stroke: rgba(111, 147, 200, 0.4);
   stroke-width: 1;
 }
 
 .hud-bearing {
   font: 500 9px var(--mono);
-  fill: rgba(131, 151, 184, 0.75);
-  letter-spacing: 0.08em;
+  fill: rgba(131, 151, 184, 0.55);
+  letter-spacing: 0.06em;
 }
 
 .hud-target {
@@ -585,12 +613,12 @@
 .hud-corner {
   position: absolute;
   font-size: 10px;
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--muted);
   letter-spacing: 0.04em;
-  padding: 6px 9px;
-  background: rgba(3, 9, 20, 0.6);
-  border: 1px solid var(--line);
+  padding: 8px 10px;
+  background: rgba(2, 6, 14, 0.55);
+  border: 1px solid rgba(19, 38, 74, 0.7);
 }
 
 .hud-k {
@@ -599,52 +627,68 @@
   margin-right: 4px;
 }
 
-.hud-tl {
-  top: 10px;
-  left: 10px;
+.hud-sep {
+  margin: 0 6px;
+  color: var(--faint);
+}
+
+.hud-detail {
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 9.5px;
 }
 
 .hud-bl {
   bottom: 10px;
   left: 10px;
-  min-width: 290px;
+  min-width: 0;
+  max-width: min(420px, calc(100% - 20px));
 }
 
-/* boot sequence */
+/* boot sequence — personal station bring-up */
 .boot-overlay {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding-left: max(24px, calc(50% - 230px));
-  gap: 6px;
-  background: #02050b;
+  padding-left: max(28px, calc(50% - 210px));
+  gap: 5px;
+  background:
+    radial-gradient(ellipse at 42% 48%, rgba(12, 28, 58, 0.45) 0%, transparent 55%),
+    #02050b;
   color: var(--muted);
   font-size: 11.5px;
-  letter-spacing: 0.06em;
-  transition: opacity 0.45s ease;
+  letter-spacing: 0.08em;
+  transition: opacity 0.55s ease;
 }
 
 .boot-overlay.boot-done {
   opacity: 0;
+  pointer-events: none;
 }
 
 .boot-line {
   opacity: 0;
-  animation: bootIn 0.25s ease forwards;
+  animation: bootIn 0.28s ease forwards;
 }
 
 .boot-line:first-child {
   color: var(--gold-hi);
-  letter-spacing: 0.16em;
-  margin-bottom: 6px;
+  letter-spacing: 0.2em;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+}
+
+.boot-line:last-child {
+  color: var(--text);
+  margin-top: 6px;
 }
 
 @keyframes bootIn {
   from {
     opacity: 0;
-    transform: translateX(-4px);
+    transform: translateX(-6px);
   }
   to {
     opacity: 1;
@@ -722,12 +766,7 @@
   }
 
   .hud-bl {
-    min-width: 0;
     right: 10px;
-  }
-
-  .hud-tl {
-    display: none;
   }
 }
 
@@ -1364,6 +1403,12 @@
 .chip-brief {
   color: var(--gold);
   border-color: rgba(201, 164, 76, 0.45);
+  background: rgba(201, 164, 76, 0.06);
+}
+
+.chip-brief:hover {
+  background: rgba(201, 164, 76, 0.12);
+  color: var(--gold-hi);
 }
 
 .brief-backdrop {
