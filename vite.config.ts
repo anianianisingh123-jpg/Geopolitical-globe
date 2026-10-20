@@ -5,7 +5,11 @@ import { intelPlugin } from "./server/intel";
 
 const stub = fileURLToPath(new URL("./src/globe/stubs/unused-layer.ts", import.meta.url));
 
+// GitHub Pages serves this repo at /Geopolitical-globe/. Local/dev stays at /.
+const base = process.env.VITE_BASE || "/";
+
 export default defineConfig({
+  base,
   // intelPlugin: local news/trends/fires endpoints under `vite` and `vite preview` (see server/intel.ts).
   plugins: [react(), intelPlugin()],
   resolve: {
