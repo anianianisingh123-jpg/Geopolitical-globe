@@ -89,8 +89,9 @@ const FLAT_OUT = 0.65;
 /** At most this many countries carry province detail at once. */
 const MAX_DETAIL_COUNTRIES = 4;
 /** Labelled places when the full render is on / in low-power mode. */
-const LABEL_BUDGET = 170;
-const LABEL_BUDGET_LOW = 70;
+/** Sparse label budget — denser only when the operator zooms in. */
+const LABEL_BUDGET = 72;
+const LABEL_BUDGET_LOW = 40;
 
 /** globe.gl accessors are typed over `object`; this narrows once, in one place. */
 const acc =
@@ -277,11 +278,11 @@ export default function GlobeView(props: GlobeViewProps) {
       .pointsTransitionDuration(0)
       .ringLat(acc<NewsPing, number>((r) => r.lat))
       .ringLng(acc<NewsPing, number>((r) => r.lng))
-      .ringAltitude(0.012)
-      .ringColor(() => (t: number) => `rgba(233,196,106,${(0.75 * (1 - t)).toFixed(3)})`)
-      .ringMaxRadius(3.2)
-      .ringPropagationSpeed(1.6)
-      .ringRepeatPeriod(2600)
+      .ringAltitude(0.01)
+      .ringColor(() => (t: number) => `rgba(201,164,76,${(0.42 * (1 - t)).toFixed(3)})`)
+      .ringMaxRadius(2.2)
+      .ringPropagationSpeed(1.2)
+      .ringRepeatPeriod(3600)
       .objectLat(acc<Bloom, number>((b) => b.lat))
       .objectLng(acc<Bloom, number>((b) => b.lng))
       .objectAltitude(0.001)
@@ -329,9 +330,9 @@ export default function GlobeView(props: GlobeViewProps) {
       })
       .onGlobeReady(() => setGlobeReady(true));
 
-    // Glow: bloom on bright things only (heat cores, lit borders), then colour-space output.
+    // Soft bloom — enough for heat cores, not a neon wash.
     const composer = globe.postProcessingComposer();
-    const bloom = new UnrealBloomPass(new Vector2(host.clientWidth, host.clientHeight), 0.75, 0.55, 0.32);
+    const bloom = new UnrealBloomPass(new Vector2(host.clientWidth, host.clientHeight), 0.38, 0.45, 0.4);
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
     bloomPassRef.current = bloom;
@@ -504,6 +505,7 @@ export default function GlobeView(props: GlobeViewProps) {
       }
 
       const phase = Math.sin((t / PULSE_MS) * Math.PI * 2);
+      const selectedZone = propsRef.current.selectedId;
       for (const b of bloomsRef.current) {
         const st = b.state;
         if (!st.visible) {
@@ -517,12 +519,14 @@ export default function GlobeView(props: GlobeViewProps) {
         const k = st.pulse ? 1 + PULSE_AMPLITUDE * phase : 1;
         const o = st.base * facing * (st.pulse ? 0.92 + 0.08 * phase : 1);
         b.glow.scale.setScalar(st.scale * k);
-        b.core.scale.setScalar(st.scale * 0.3 * k);
-        b.glow.material.opacity = o * 0.7 * glowFade;
+        b.core.scale.setScalar(st.scale * 0.28 * k);
+        b.glow.material.opacity = o * 0.55 * glowFade;
         b.core.material.opacity = o * st.coreGain * glowFade;
-        const mark = Math.min(1, 0.35 + st.base) * facing;
-        b.ring.material.opacity = mark * 0.9;
-        b.ticks.material.opacity = mark * 0.75;
+        // Compass ticks only on the tracked target — everywhere else is soft glow.
+        const marked = b.zoneId === selectedZone;
+        const mark = marked ? Math.min(1, 0.4 + st.base) * facing : 0;
+        b.ring.material.opacity = mark * 0.85;
+        b.ticks.material.opacity = mark * 0.65;
       }
     };
     raf = requestAnimationFrame(tick);
@@ -653,11 +657,11 @@ export default function GlobeView(props: GlobeViewProps) {
         acc<PolyDatum, string>((d) => {
           if (d.kind === "country") {
             const h = heatOf(d.shape.iso3);
-            return h > 0 ? heatCss(h, (0.28 + 0.55 * (h / 100)) * capAlpha) : "rgba(0,0,0,0)";
+            return h > 0 ? heatCss(h, (0.22 + 0.48 * (h / 100)) * capAlpha) : "rgba(0,0,0,0)";
           }
           const v = byId.get(d.zone.id)?.view ?? 0;
           const sel = d.zone.id === selectedId;
-          return v > 0 ? heatCss(v, ((sel ? 0.4 : 0.2) + 0.35 * (v / 100)) * capAlpha) : "rgba(0,0,0,0)";
+          return v > 0 ? heatCss(v, ((sel ? 0.36 : 0.16) + 0.3 * (v / 100)) * capAlpha) : "rgba(0,0,0,0)";
         }),
       )
       .polygonSideColor(
@@ -873,7 +877,7 @@ export default function GlobeView(props: GlobeViewProps) {
       [...byId.values()]
         .filter((s) => s.view > 0 && s.intensities[solo] > 0 && !seen.has(s.zone.id))
         .sort((a, b) => b.view - a.view)
-        .slice(0, 14)
+        .slice(0, 8)
         .forEach((s) => {
           const [lat, lng] = s.zone.centroid;
           labels.push({ key: s.zone.id, lat, lng, alt: 0.02, el: makeLabel(s.zone.name, fmtScore(s.view), heatCss(Math.max(s.view, 35))) });
